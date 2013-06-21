@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"log"
+	"os"
 )
 
 type Message struct {
@@ -86,7 +87,13 @@ func main() {
 		handleMessage(messagesChan, writer, request)
 	})
 
-	log.Print("Starting server on :8080")
+	port := "8080"
 
-	http.ListenAndServe(":8080", nil)
+	if portFromEnv := os.Getenv("PORT"); portFromEnv != "" {
+		port = portFromEnv
+	}
+
+	log.Print("Starting server on port ", port)
+
+	http.ListenAndServe(":" + port, nil)
 }
