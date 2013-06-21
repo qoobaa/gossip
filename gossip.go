@@ -6,29 +6,27 @@ import (
 )
 
 type Client struct {
-	writer http.ResponseWriter
 	channel chan <- string
 }
 
 func handleMessages(messageChan <- chan string, addChan <- chan Client, removeChan <- chan Client) {
-	clients := make(map[http.ResponseWriter] chan <- string)
+	channels := make(map[Client] chan <- string)
 
 	for {
 		select {
 		case message := <- messageChan:
 			log.Print("New message: ", message)
-			for _, channel := range clients {
-				// TODO: use buffered channel?
-				go func () {
-					channel <- message
-				}()
+			for _, channel := range channels {
+				go func (c chan <- string) {
+					c <- message
+				}(channel)
 			}
 		case client := <- addChan:
 			log.Print("Client connected: ", client)
-			clients[client.writer] = client.channel
+			channels[client] = client.channel
 		case client := <- removeChan:
 			log.Print("Client disconnected: ", client)
-			delete(clients, client.writer)
+			delete(channels, client)
 		}
 	}
 }
@@ -39,7 +37,7 @@ func handleStream(messageChan chan <- string, addChan chan <- Client, removeChan
 	writer.WriteHeader(200)
 
 	channel := make(chan string)
-	client  := Client{writer, channel}
+	client  := Client{channel}
 
 	addChan <- client
 
