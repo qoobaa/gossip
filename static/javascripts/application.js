@@ -2,8 +2,8 @@ jQuery(function ($) {
     var eventSource = new EventSource("/stream");
 
     eventSource.onmessage = function (messageEvent) {
-        $("<ul>").appendTo("#chat").text(messageEvent.data);
-    }
+        $("<ul>").prependTo("#chat").text(messageEvent.data);
+    };
 
     $("form").submit(function (event) {
         event.preventDefault();

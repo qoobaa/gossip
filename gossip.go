@@ -20,7 +20,7 @@ func handleMessages(messageChan <- chan Message, addChan <- chan Client, removeC
 	for {
 		select {
 		case message := <- messageChan:
-			log.Print("New message from ", message.name, ": ", message.body)
+			log.Print("New message: ", message.body)
 			for _, channel := range channels {
 				go func (c chan <- Message) {
 					c <- message
