@@ -5,19 +5,24 @@ import (
 	"log"
 )
 
-type Client struct {
-	channel chan <- string
+type Message struct {
+	name string
+	body string
 }
 
-func handleMessages(messageChan <- chan string, addChan <- chan Client, removeChan <- chan Client) {
-	channels := make(map[Client] chan <- string)
+type Client struct {
+	channel chan <- Message
+}
+
+func handleMessages(messageChan <- chan Message, addChan <- chan Client, removeChan <- chan Client) {
+	channels := make(map[Client] chan <- Message)
 
 	for {
 		select {
 		case message := <- messageChan:
-			log.Print("New message: ", message)
+			log.Print("New message from ", message.name, ": ", message.body)
 			for _, channel := range channels {
-				go func (c chan <- string) {
+				go func (c chan <- Message) {
 					c <- message
 				}(channel)
 			}
@@ -31,19 +36,19 @@ func handleMessages(messageChan <- chan string, addChan <- chan Client, removeCh
 	}
 }
 
-func handleStream(messageChan chan <- string, addChan chan <- Client, removeChan chan <- Client, writer http.ResponseWriter, request *http.Request) {
+func handleStream(messageChan chan <- Message, addChan chan <- Client, removeChan chan <- Client, writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "text/event-stream")
 	writer.Header().Set("Access-Control-Allow-Origin", "*")
 	writer.WriteHeader(200)
 
-	channel := make(chan string)
+	channel := make(chan Message)
 	client  := Client{channel}
 
 	addChan <- client
 
 	for {
 		message := <- channel
-		if _, error := writer.Write([]byte(message + "\r\n")); error != nil {
+		if _, error := writer.Write([]byte("data: " + message.body + "\n\n")); error != nil {
 			log.Print("Write: ", error)
 			break
 		}
@@ -53,15 +58,16 @@ func handleStream(messageChan chan <- string, addChan chan <- Client, removeChan
 	removeChan <- client
 }
 
-func handleMessage(messageChan chan <- string, writer http.ResponseWriter, request *http.Request) {
+func handleMessage(messageChan chan <- Message, writer http.ResponseWriter, request *http.Request) {
 	request.ParseForm()
 	message := request.FormValue("message")
-	messageChan <- message
+	name    := request.FormValue("name")
+	messageChan <- Message{name, message}
 	writer.WriteHeader(200)
 }
 
 func main() {
-	messagesChan := make(chan string)
+	messagesChan := make(chan Message)
 	addChan      := make(chan Client)
 	removeChan   := make(chan Client)
 
