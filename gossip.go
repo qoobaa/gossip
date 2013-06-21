@@ -3,7 +3,6 @@ package main
 import (
 	"net/http"
 	"log"
-	"time"
 )
 
 type Client struct {
@@ -12,16 +11,24 @@ type Client struct {
 }
 
 func handleMessages(messageChan <- chan string, addChan <- chan Client, removeChan <- chan Client) {
-	// clients := make(map[http.ResponseWriter] chan <- string)
+	clients := make(map[http.ResponseWriter] chan <- string)
 
 	for {
 		select {
 		case message := <- messageChan:
 			log.Print("New message: ", message)
+			for _, channel := range clients {
+				// TODO: use buffered channel?
+				go func () {
+					channel <- message
+				}()
+			}
 		case client := <- addChan:
 			log.Print("Client connected: ", client)
+			clients[client.writer] = client.channel
 		case client := <- removeChan:
 			log.Print("Client disconnected: ", client)
+			delete(clients, client.writer)
 		}
 	}
 }
@@ -37,15 +44,22 @@ func handleStream(messageChan chan <- string, addChan chan <- Client, removeChan
 	addChan <- client
 
 	for {
-		if _, error := writer.Write([]byte("test\r\n")); error != nil {
+		message := <- channel
+		if _, error := writer.Write([]byte(message + "\r\n")); error != nil {
 			log.Print("Write: ", error)
 			break
 		}
 		writer.(http.Flusher).Flush()
-		time.Sleep(time.Second)
 	}
 
 	removeChan <- client
+}
+
+func handleMessage(messageChan chan <- string, writer http.ResponseWriter, request *http.Request) {
+	request.ParseForm()
+	message := request.FormValue("message")
+	messageChan <- message
+	writer.WriteHeader(200)
 }
 
 func main() {
@@ -64,10 +78,11 @@ func main() {
 	http.HandleFunc("/stream", func (writer http.ResponseWriter, request *http.Request) {
 		handleStream(messagesChan, addChan, removeChan, writer, request)
 	})
+	http.HandleFunc("/messages", func (writer http.ResponseWriter, request *http.Request) {
+		handleMessage(messagesChan, writer, request)
+	})
 
 	log.Print("Starting server on :8080")
 
-	if error := http.ListenAndServe(":8080", nil); error != nil {
-		log.Fatal("ListenAndServe: ", error)
-	}
+	http.ListenAndServe(":8080", nil)
 }
