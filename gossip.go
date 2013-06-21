@@ -70,6 +70,4 @@ func main() {
 	if error := http.ListenAndServe(":8080", nil); error != nil {
 		log.Fatal("ListenAndServe: ", error)
 	}
-
-	log.Print("yeah");
 }
