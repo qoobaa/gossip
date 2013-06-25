@@ -4,15 +4,16 @@ import (
 	"net/http"
 	"log"
 	"os"
+	"encoding/json"
 )
 
 type Message struct {
-	name string
-	body string
+	Name string `json:"name"`
+	Body string `json:"body"`
 }
 
 type Client struct {
-	channel chan <- Message
+	Channel chan <- Message
 }
 
 func handleMessages(messageChan <- chan Message, addChan <- chan Client, removeChan <- chan Client) {
@@ -21,7 +22,7 @@ func handleMessages(messageChan <- chan Message, addChan <- chan Client, removeC
 	for {
 		select {
 		case message := <- messageChan:
-			log.Print("New message: ", message.body)
+			log.Print("New message: ", message.Body)
 			for _, channel := range channels {
 				go func (c chan <- Message) {
 					c <- message
@@ -29,7 +30,7 @@ func handleMessages(messageChan <- chan Message, addChan <- chan Client, removeC
 			}
 		case client := <- addChan:
 			log.Print("Client connected: ", client)
-			channels[client] = client.channel
+			channels[client] = client.Channel
 		case client := <- removeChan:
 			log.Print("Client disconnected: ", client)
 			delete(channels, client)
@@ -49,7 +50,8 @@ func handleStream(messageChan chan <- Message, addChan chan <- Client, removeCha
 
 	for {
 		message := <- channel
-		if _, error := writer.Write([]byte("data: " + message.body + "\n\n")); error != nil {
+		data, _ := json.Marshal(message)
+		if _, error := writer.Write([]byte("data: " + string(data) + "\n\n")); error != nil {
 			log.Print("Write: ", error)
 			break
 		}

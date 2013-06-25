@@ -2,7 +2,9 @@ jQuery(function ($) {
     var eventSource = new EventSource("/stream");
 
     eventSource.onmessage = function (messageEvent) {
-        $("<li>").prependTo("#chat").text(messageEvent.data);
+        var message = JSON.parse(messageEvent.data);
+
+        $("<li>").prependTo("#chat").text(message.name + ": " + message.body);
     };
 
     $("form").submit(function (event) {
